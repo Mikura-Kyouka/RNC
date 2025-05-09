@@ -1,8 +1,8 @@
-# RusticNest Transpiler
+# RusticNest Compiler
 
 ## 简介
 
-RNT是一个用 Rust 实现的 SNL 语言编译器。
+RNC是一个用 Rust 实现的 SNL 语言编译器。
 
 ## 预期目标
 
