@@ -26,7 +26,7 @@ pub fn analyze(program: &Program) -> Result<(), Vec<SemanticError>> {
     let mut table = SymbolTable::default();
     let mut errors = Vec::new();
 
-    if let Program::Full { head: _, declare, body } = program {
+    if let Program::Full { head: _, declare, body, procs: _ } = program {
         process_declarations(declare, &mut table, &mut errors);
         check_statements(&body.stmts, &mut table, &mut errors);
     }

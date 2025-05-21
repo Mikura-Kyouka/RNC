@@ -1,27 +1,28 @@
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Program {
     Full {
         head: ProgramHead,
         declare: DeclarePart,
+        procs: Vec<ProcDec>,
         body: ProgramBody,
-    },
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProgramHead {
     pub name: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeclarePart {
     pub type_decs: Vec<TypeDec>,
     pub var_decs: Vec<VarDec>,
     pub proc_decs: Vec<ProcDec>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeDec {
     pub name: String,
     pub typ: TypeName,
@@ -35,13 +36,24 @@ pub enum TypeName {
     Alias(String),
 }
 
-#[derive(Debug)]
+impl TypeName {
+    pub fn to_string(&self) -> String {
+        match self {
+            TypeName::Base(base) => base.clone(),
+            TypeName::Array { low, high, base } => format!("array[{}..{}] of {}", low, high, base),
+            TypeName::Record(_) => "record_type".to_string(),
+            TypeName::Alias(name) => name.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct VarDec {
     pub typ: TypeName,
     pub names: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProcDec {
     pub name: String,
     pub params: Vec<Param>,
@@ -56,12 +68,12 @@ pub struct Param {
     pub names: Vec<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ProgramBody {
     pub stmts: Vec<Stmt>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Assign { var: Variable, expr: Expr },
     Call { name: String, args: Vec<Expr> },
@@ -72,7 +84,7 @@ pub enum Stmt {
     Return(Expr),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Binary {
         op: BinOp,
@@ -84,7 +96,7 @@ pub enum Expr {
     Paren(Box<Expr>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum BinOp {
     Add,
     Sub,
@@ -94,14 +106,14 @@ pub enum BinOp {
     Eq,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Variable {
     Simple(String),
     Array(String, Box<Expr>),
     Record(String, String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum VarSuffix {
     None,
     Array(Box<Expr>),

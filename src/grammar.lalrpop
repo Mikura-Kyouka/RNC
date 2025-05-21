@@ -48,13 +48,21 @@ extern {
         "." => Token::Dot,
         ".." => Token::Range,
         Ident => Token::Ident(<String>),
-        Int => Token::Int(<i64>),
+        Int => Token::Int(<i32>),
     }
 }
 
-// Program  ::=ProgramHead  DeclarePart  ProgramBody
+// Program  ::= ProgramHead  DeclarePart  ProgramBody
 pub Program: Program = {
-    <head:ProgramHead> <declare:DeclarePart> <body:ProgramBody> => Program::Full { head, declare, body }
+    <head:ProgramHead> <declare:DeclarePart> <body:ProgramBody> "." => {
+        // 现在可以直接克隆了，因为ProcDec已经实现了Clone trait
+        Program::Full { 
+            head, 
+            declare: declare.clone(), 
+            procs: declare.proc_decs.clone(), 
+            body 
+        }
+    }
 };
 
 ProgramHead: ProgramHead = {
@@ -65,19 +73,28 @@ ProgramName: String = {
     Ident => <>.clone()
 };
 
+// DeclarePart  ::=  TypeDec  VarDec  ProcDec
+#[inline]
 DeclarePart: DeclarePart = {
-    <type_decs:TypeDec> <var_decs:VarDec> <proc_decs:ProcDec> => DeclarePart { type_decs, var_decs, proc_decs }
+    <type_decs:TypeDec> <var_decs:VarDec> <proc_decs:ProcDec> => DeclarePart {
+        type_decs,
+        var_decs,
+        proc_decs,
+    },
 };
 
+// TypeDec  ::=  e  | TypeDeclaration
 TypeDec: Vec<TypeDec> = {
     => vec![],
-    <TypeDeclaration> => <>,
+    <decl:TypeDeclaration> => decl,
 };
 
+// TypeDeclaration::=   TYPE  TypeDecList
 TypeDeclaration: Vec<TypeDec> = {
-    "type" <list:TypeDecList> => list
+    "type" <list:TypeDecList> => list,
 };
 
+// TypeDecList::=TypeId = TypeName ; TypeDecMore
 TypeDecList: Vec<TypeDec> = {
     <name:TypeId> "=" <typ:TypeName> ";" <more:TypeDecMore> => {
         let mut list = vec![TypeDec { name, typ }];
@@ -86,48 +103,52 @@ TypeDecList: Vec<TypeDec> = {
     }
 };
 
+// TypeDecMore  ::=   e  | TypeDecList
 TypeDecMore: Vec<TypeDec> = {
     => vec![],
-    <TypeDecList> => <>,
+    <list:TypeDecList> => list
 };
 
 TypeId: String = {
     Ident => <>.clone()
 };
 
+// TypeName  ::=   BaseType  | StructureType  | ID
 TypeName: TypeName = {
     <typ:BaseType> => typ,
     <typ:StructureType> => typ,
     Ident => TypeName::Alias(<>.clone())
 };
 
+// BaseType  ::=  INTEGER | CHAR
 BaseType: TypeName = {
     "integer" => TypeName::Base("integer".to_string()),
     "char" => TypeName::Base("char".to_string())
 };
 
+// StructureType  ::=   ArrayType  | RecType
 StructureType: TypeName = {
     <typ:ArrayType> => typ,
     <typ:RecType> => typ
 };
 
 // ArrayType  ::=  ARRAY [low..top ] OF BaseType
-// Low ::=  INTC
-// Top  ::= INTC 
 ArrayType: TypeName = {
     "array" "[" <low:Int> ".." <top:Int> "]" "of" <base_type:BaseType> => {
         if let TypeName::Base(base) = base_type {
-            TypeName::Array { low, high: top, base }
+            TypeName::Array { low: low as i32, high: top as i32, base }
         } else {
             unreachable!()
         }
     }
 };
 
+// RecType  ::=  RECORD  FieldDecList  END
 RecType: TypeName = {
     "record" <fields:FieldDecList> "end" => TypeName::Record(fields)
 };
 
+// FieldDecList  ::=  BaseType  IdList ; FieldDecMore  | ArrayType IdList ; FieldDecMore
 FieldDecList: Vec<(String, String)> = {
     <base_type:BaseType> <ids:IdList> ";" <more:FieldDecMore> => {
         let mut result = vec![];
@@ -139,14 +160,25 @@ FieldDecList: Vec<(String, String)> = {
         result.extend(more);
         result
     },
-    <array_type:ArrayType> <ids:IdList> ";" <more:FieldDecMore> => more // 忽略嵌套数组字段以简化
+    <array_type:ArrayType> <ids:IdList> ";" <more:FieldDecMore> => {
+        let mut result = vec![];
+        if let TypeName::Array { low, high, base } = array_type {
+            for id in ids {
+                result.push((format!("array[{}..{}] of {}", low, high, base), id));
+            }
+        }
+        result.extend(more);
+        result
+    }
 };
 
+// FieldDecMore  ::=  e  | FieldDecList
 FieldDecMore: Vec<(String, String)> = {
     => vec![],
     <list:FieldDecList> => list
 };
 
+// IdList  ::=   ID  IdMore
 IdList: Vec<String> = {
     <id:Ident> <more:IdMore> => {
         let mut list = vec![id.clone()];
@@ -155,20 +187,24 @@ IdList: Vec<String> = {
     }
 };
 
+// IdMore  ::=  e  | , IdList
 IdMore: Vec<String> = {
     => vec![],
     "," <list:IdList> => list
 };
 
+// VarDec  ::=  e | VarDeclaration
 VarDec: Vec<VarDec> = {
     => vec![],
-    <list:VarDeclaration> => list
+    <decl:VarDeclaration> => decl,
 };
 
+// VarDeclaration  ::=  VAR  VarDecList
 VarDeclaration: Vec<VarDec> = {
-    "var" <list:VarDecList> => list
+    "var" <list:VarDecList> => list,
 };
 
+// VarDecList ::= TypeName  VarIdList ;  VarDecMore
 VarDecList: Vec<VarDec> = {
     <typ:TypeName> <names:VarIdList> ";" <more:VarDecMore> => {
         let mut list = vec![VarDec { typ, names }];
@@ -177,6 +213,7 @@ VarDecList: Vec<VarDec> = {
     }
 };
 
+// VarDecMore  ::=  e |VarDecList
 VarDecMore: Vec<VarDec> = {
     => vec![],
     <list:VarDecList> => list
@@ -191,47 +228,55 @@ VarIdList: Vec<String> = {
     }
 };
 
+// VarIdMore  ::=  e | , VarIdList
 VarIdMore: Vec<String> = {
     => vec![],
     "," <list:VarIdList> => list
 };
 
 // ProcDec  ::=  e | ProcDeclaration
-// ProcDeclaration ::=  PROCEDURE  ProcName ( ParamList )  ; ProcDecPart ProcBody ProcDecMore
-// ProcDecMore::=  e | ProcDeclaration
 ProcDec: Vec<ProcDec> = {
     => vec![],
-    <proc_decl:ProcDeclaration> => proc_decl
-};
-
-ProcDeclaration: Vec<ProcDec> = {
-    "procedure" <name:ProcName> "(" <params:ParamList> ")" ";" <declare_part:ProcDecPart> <body:ProcBody> <more:ProcDecMore> => {
-        let proc = ProcDec {
-            name,
-            params,
-            declare_part,
-            body
-        };
-        let mut list = vec![proc];
+    <decl:ProcDeclaration> <more:ProcDecMore> => {
+        let mut list = vec![decl];
         list.extend(more);
         list
     }
 };
 
+// ProcDeclaration ::= PROCEDURE ProcName ( ParamList ) ; ProcDecPart ProcBody ProcDecMore
+ProcDeclaration: ProcDec = {
+    "procedure" <name:ProcName> "(" <params:ParamList> ")" ";" <declare_part:ProcDecPart> <body:ProcBody> => {
+        ProcDec {
+            name,
+            params,
+            declare_part,
+            body
+        }
+    }
+};
+
+// ProcDecMore::=  e | ProcDeclaration
 ProcDecMore: Vec<ProcDec> = {
     => vec![],
-    <proc_decl:ProcDeclaration> => proc_decl
+    <decl:ProcDeclaration> <more:ProcDecMore> => {
+        let mut list = vec![decl];
+        list.extend(more);
+        list
+    }
 };
 
 ProcName: String = {
     Ident => <>.clone()
 };
 
+// ParamList  ::=  e | ParamDecList
 ParamList: Vec<Param> = {
     => vec![],
     <list:ParamDecList> => list
 };
 
+// ParamDecList  ::=  Param  ParamMore
 ParamDecList: Vec<Param> = {
     <param:Param> <more:ParamMore> => {
         let mut list = vec![param];
@@ -240,16 +285,19 @@ ParamDecList: Vec<Param> = {
     }
 };
 
+// ParamMore  ::=  e | ; ParamDecList
 ParamMore: Vec<Param> = {
     => vec![],
     ";" <list:ParamDecList> => list
 };
 
+// Param  ::=  TypeName  FormList  | VAR TypeName  FormList
 Param: Param = {
     <typ:TypeName> <names:FormList> => Param { is_var: false, typ, names },
     "var" <typ:TypeName> <names:FormList> => Param { is_var: true, typ, names }
 };
 
+// FormList  ::=   ID  FidMore
 FormList: Vec<String> = {
     <id:Ident> <more:FidMore> => {
         let mut list = vec![id.clone()];
@@ -258,23 +306,28 @@ FormList: Vec<String> = {
     }
 };
 
+// FidMore  ::=  e | , FormList
 FidMore: Vec<String> = {
     => vec![],
     "," <list:FormList> => list
 };
 
+// ProcDecPart  ::=  DeclarePart
 ProcDecPart: DeclarePart = {
     <part:DeclarePart> => part
 };
 
+// ProcBody  ::=  ProgramBody
 ProcBody: ProgramBody = {
     <body:ProgramBody> => body
 };
 
+// ProgramBody  ::=  BEGIN  StmList END
 ProgramBody: ProgramBody = {
     "begin" <stmts:StmList> "end" => ProgramBody { stmts }
 };
 
+// StmList  ::=  Stm  StmMore
 StmList: Vec<Stmt> = {
     <stm:Stm> <more:StmMore> => {
         let mut list = vec![stm];
@@ -283,6 +336,8 @@ StmList: Vec<Stmt> = {
     }
 };
 
+// StmMore  ::=  e | ;  StmList
+#[inline]
 StmMore: Vec<Stmt> = {
     => vec![],
     ";" <list:StmList> => list
@@ -303,7 +358,7 @@ Stm: Stmt = {
                     VariMoreEnum::Array(expr) => Variable::Array(id.clone(), expr),
                     VariMoreEnum::Field(field) => Variable::Record(id.clone(), field)
                 };
-                Stmt::Assign { var, expr }
+                Stmt::Assign { var, expr: *expr }
             },
             AssCallRest::Call(args) => Stmt::Call { name: id.clone(), args }
         }
@@ -311,29 +366,54 @@ Stm: Stmt = {
 };
 
 // AssCall  ::=  AssignmentRest  | CallStmRest
+#[inline]
 AssCall: AssCallRest = {
-    <AssignmentRest>,
-    <CallStmRest>
+    // 避免冲突：通过查看下一个token决定是哪种情况
+    "(" <args:ActParamList> ")" => AssCallRest::Call(args), // CallStmRest
+    <var_more:VariMore> ":=" <expr:Exp> => AssCallRest::Assign(var_more, Box::new(expr)), // AssignmentRest
 };
 
-// AssignmentRest  ::= VariMore  := Exp
-AssignmentRest: AssCallRest = {
-    <var_more:VariMore> ":=" <expr:Exp> => AssCallRest::Assign(var_more, Box::new(expr))
-};
-
+// VariMore  ::=  e  | [ Exp ]  | .  FieldVar
+#[inline]
 VariMore: VariMoreEnum = {
     => VariMoreEnum::None,
     "[" <expr:Exp> "]" => VariMoreEnum::Array(Box::new(expr)),
-    "." <field:Ident> => VariMoreEnum::Field(field.clone())
+    "." <field:Ident> => VariMoreEnum::Field(field.clone()),
 };
 
-// CallStmRest  ::=  ( ActParamList )
-CallStmRest: AssCallRest = {
-    "(" <args:ActParamList> ")" => AssCallRest::Call(args)
+// ConditionalStm  ::=  IF RelExp THEN StmList ELSE StmList FI
+ConditionalStm: Stmt = {
+    "if" <cond:RelExp> "then" <then:StmList> "else" <els:StmList> "fi" =>
+        Stmt::If { cond, then, els }
 };
 
-// ActParamList::=  e | Exp  ActParamMore
-// ActParamMore::=e  | ,  ActParamList
+// LoopStm::=  WHILE  RelExp DO StmList  ENDWH
+LoopStm: Stmt = {
+    "while" <cond:RelExp> "do" <body:StmList> "endwh" =>
+        Stmt::While { cond, body }
+};
+
+// InputStm  ::=  READ ( Invar)
+InputStm: Stmt = {
+    "read" "(" <invar:Invar> ")" => Stmt::Read(invar)
+};
+
+// Invar   ::=   ID
+Invar: String = {
+    Ident => <>.clone()
+};
+
+// OutputStm  ::=  WRITE( Exp )
+OutputStm: Stmt = {
+    "write" "(" <expr:Exp> ")" => Stmt::Write(expr)
+};
+
+// ReturnStm  ::=  RETURN ( Exp )
+ReturnStm: Stmt = {
+    "return" "(" <expr:Exp> ")" => Stmt::Return(expr)
+};
+
+// ActParamList::= e | Exp ActParamMore
 ActParamList: Vec<Expr> = {
     => vec![],
     <expr:Exp> <more:ActParamMore> => {
@@ -343,48 +423,18 @@ ActParamList: Vec<Expr> = {
     }
 };
 
+// ActParamMore::= e | , ActParamList
 ActParamMore: Vec<Expr> = {
     => vec![],
     "," <list:ActParamList> => list
 };
 
-// ConditionalStm  ::=  IF RelExp THEN StmList ELSE StmList FI
-ConditionalStm: Stmt = {
-    "if" <cond:RelExp> "then" <then:StmList> "else" <els:StmList> "fi" =>
-        Stmt::If { cond: Box::new(cond), then, els }
-};
-
-// LoopStm::=  WHILE  RelExp DO StmList  ENDWH
-LoopStm: Stmt = {
-    "while" <cond:RelExp> "do" <body:StmList> "endwh" =>
-        Stmt::While { cond: Box::new(cond), body }
-};
-
-// InputStm  ::=  READ ( Invar)
-// Invar   ::=   ID
-InputStm: Stmt = {
-    "read" "(" <invar:Invar> ")" => Stmt::Read(invar)
-};
-
-Invar: String = {
-    Ident => <>.clone()
-};
-
-// OutputStm  ::=  WRITE( Exp )
-OutputStm: Stmt = {
-    "write" "(" <expr:Exp> ")" => Stmt::Write(Box::new(expr))
-};
-
-// ReturnStm  ::=  RETURN ( Exp )
-ReturnStm: Stmt = {
-    "return" "(" <expr:Exp> ")" => Stmt::Return(Box::new(expr))
-};
-
-// RelExp  ::=  Exp  OtherRelE
-// OtherRelE  ::=  CmpOp   Exp
+// RelExp ::= Exp OtherRelE
+// OtherRelE ::= CmpOp Exp
+#[inline]
 RelExp: Expr = {
-    <expr:Exp> <other_rel:OtherRelE?> => {
-        match other_rel {
+    <expr:Exp> <other:OtherRelE?> => {
+        match other {
             Some((op, right)) => Expr::Binary {
                 left: Box::new(expr),
                 op,
@@ -401,12 +451,13 @@ OtherRelE: (BinOp, Expr) = {
 
 // CmpOp  ::=    < |  =
 CmpOp: BinOp = {
-    "<" => BinOp::LT,
-    "=" => BinOp::EQ
+    "<" => BinOp::Lt,
+    "=" => BinOp::Eq
 };
 
-// Exp  ::=  Term   OtherTerm
-// OtherTerm  ::=  e | AddOp   Exp
+// Exp ::= Term OtherTerm
+// OtherTerm ::= e | AddOp Exp
+#[inline]
 Exp: Expr = {
     <term:Term> <other:OtherTerm?> => {
         match other {
@@ -424,8 +475,9 @@ OtherTerm: (BinOp, Expr) = {
     <op:AddOp> <expr:Exp> => (op, expr)
 };
 
-// Term  ::=   Factor   OtherFactor
-// OtherFactor  ::=   e  |  MultOp  Term
+// Term ::= Factor OtherFactor
+// OtherFactor ::= e | MultOp Term
+#[inline]
 Term: Expr = {
     <factor:Factor> <other:OtherFactor?> => {
         match other {
@@ -443,17 +495,14 @@ OtherFactor: (BinOp, Expr) = {
     <op:MultOp> <term:Term> => (op, term)
 };
 
-// Factor  ::=   (  Exp  )  |  INTC  |  Variable
+// Factor ::= ( Exp ) | INTC | Variable
 Factor: Expr = {
     "(" <expr:Exp> ")" => Expr::Paren(Box::new(expr)),
-    Int => Expr::Int(<>),
+    Int => Expr::Int(<> as i32),
     <var:Variable> => Expr::Var(var)
 };
 
-// Variable  ::=   ID   VariMore
-// VariMore  ::=  e  | [ Exp ]  | .  FieldVar
-// FieldVar  ::=    ID   FieldVarMore  
-// FieldVarMore ::=  e  | [ Exp  ]
+// Variable ::= ID VariMore
 Variable: Variable = {
     <id:Ident> <more:VariMore> => {
         match more {
@@ -464,10 +513,12 @@ Variable: Variable = {
     }
 };
 
-FieldVar: String = {
-    <id:Ident> <_more:FieldVarMore> => id.clone()  // 简化处理，忽略可能的数组索引
+// FieldVar ::= ID FieldVarMore
+FieldVar: (String, Option<Box<Expr>>) = {
+    <id:Ident> <more:FieldVarMore> => (id.clone(), more)
 };
 
+// FieldVarMore ::= e | [ Exp ]
 FieldVarMore: Option<Box<Expr>> = {
     => None,
     "[" <expr:Exp> "]" => Some(Box::new(expr))
