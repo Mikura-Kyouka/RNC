@@ -234,17 +234,17 @@ VarIdMore: Vec<String> = {
     "," <list:VarIdList> => list
 };
 
-// ProcDec  ::=  e | ProcDeclaration
+// ProcDec  ::=  e | ProcDeclaration ProcDecMore
 ProcDec: Vec<ProcDec> = {
     => vec![],
-    <decl:ProcDeclaration> <more:ProcDecMore> => {
+    <decl:ProcDeclaration> <more:ProcDec> => {
         let mut list = vec![decl];
         list.extend(more);
         list
     }
 };
 
-// ProcDeclaration ::= PROCEDURE ProcName ( ParamList ) ; ProcDecPart ProcBody ProcDecMore
+// ProcDeclaration ::= PROCEDURE ProcName ( ParamList ) ; ProcDecPart ProcBody
 ProcDeclaration: ProcDec = {
     "procedure" <name:ProcName> "(" <params:ParamList> ")" ";" <declare_part:ProcDecPart> <body:ProcBody> => {
         ProcDec {
@@ -253,16 +253,6 @@ ProcDeclaration: ProcDec = {
             declare_part,
             body
         }
-    }
-};
-
-// ProcDecMore::=  e | ProcDeclaration
-ProcDecMore: Vec<ProcDec> = {
-    => vec![],
-    <decl:ProcDeclaration> <more:ProcDecMore> => {
-        let mut list = vec![decl];
-        list.extend(more);
-        list
     }
 };
 
@@ -333,7 +323,9 @@ StmList: Vec<Stmt> = {
         let mut list = vec![stm];
         list.extend(more);
         list
-    }
+    },
+    // 添加空规则，允许空的语句列表
+    => vec![]
 };
 
 // StmMore  ::=  e | ;  StmList

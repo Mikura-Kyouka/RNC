@@ -1,0 +1,196 @@
+Full {
+    head: ProgramHead {
+        name: "sd",
+    },
+    declare: DeclarePart {
+        type_decs: [
+            TypeDec {
+                name: "i",
+                typ: Base(
+                    "integer",
+                ),
+            },
+            TypeDec {
+                name: "sarray",
+                typ: Array {
+                    low: 0,
+                    high: 5,
+                    base: "integer",
+                },
+            },
+        ],
+        var_decs: [
+            VarDec {
+                typ: Alias(
+                    "i",
+                ),
+                names: [
+                    "x",
+                ],
+            },
+            VarDec {
+                typ: Alias(
+                    "sarray",
+                ),
+                names: [
+                    "y",
+                ],
+            },
+            VarDec {
+                typ: Base(
+                    "integer",
+                ),
+                names: [
+                    "ss",
+                ],
+            },
+        ],
+        proc_decs: [
+            ProcDec {
+                name: "sd",
+                params: [
+                    Param {
+                        is_var: false,
+                        typ: Base(
+                            "integer",
+                        ),
+                        names: [
+                            "a",
+                        ],
+                    },
+                ],
+                declare_part: DeclarePart {
+                    type_decs: [],
+                    var_decs: [],
+                    proc_decs: [],
+                },
+                body: ProgramBody {
+                    stmts: [
+                        Write(
+                            Var(
+                                Simple(
+                                    "a",
+                                ),
+                            ),
+                        ),
+                    ],
+                },
+            },
+        ],
+    },
+    procs: [
+        ProcDec {
+            name: "sd",
+            params: [
+                Param {
+                    is_var: false,
+                    typ: Base(
+                        "integer",
+                    ),
+                    names: [
+                        "a",
+                    ],
+                },
+            ],
+            declare_part: DeclarePart {
+                type_decs: [],
+                var_decs: [],
+                proc_decs: [],
+            },
+            body: ProgramBody {
+                stmts: [
+                    Write(
+                        Var(
+                            Simple(
+                                "a",
+                            ),
+                        ),
+                    ),
+                ],
+            },
+        },
+    ],
+    body: ProgramBody {
+        stmts: [
+            Assign {
+                var: Simple(
+                    "ss",
+                ),
+                expr: Int(
+                    0,
+                ),
+            },
+            While {
+                cond: Binary {
+                    op: Lt,
+                    left: Var(
+                        Simple(
+                            "ss",
+                        ),
+                    ),
+                    right: Int(
+                        6,
+                    ),
+                },
+                body: [
+                    Assign {
+                        var: Array(
+                            "y",
+                            Var(
+                                Simple(
+                                    "ss",
+                                ),
+                            ),
+                        ),
+                        expr: Var(
+                            Simple(
+                                "ss",
+                            ),
+                        ),
+                    },
+                    Assign {
+                        var: Simple(
+                            "x",
+                        ),
+                        expr: Var(
+                            Array(
+                                "y",
+                                Var(
+                                    Simple(
+                                        "ss",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    },
+                    Call {
+                        name: "sd",
+                        args: [
+                            Var(
+                                Simple(
+                                    "x",
+                                ),
+                            ),
+                        ],
+                    },
+                    Assign {
+                        var: Simple(
+                            "ss",
+                        ),
+                        expr: Binary {
+                            op: Add,
+                            left: Var(
+                                Simple(
+                                    "ss",
+                                ),
+                            ),
+                            right: Int(
+                                1,
+                            ),
+                        },
+                    },
+                ],
+            },
+        ],
+    },
+}
