@@ -4,7 +4,6 @@ mod type_checker;
 pub use symbol_table::SymbolTable;
 pub use type_checker::TypeChecker;
 
-// 适配 ast.rs 的结构
 use crate::ast::{
     Expr, Program, Stmt, BinOp, Variable, ProgramBody, 
     TypeName, VarDec, ProcDec, Param,
@@ -42,7 +41,7 @@ impl fmt::Display for SemanticError {
 }
 
 pub struct SemanticAnalyzer {
-    symbol_table: SymbolTable,
+    pub symbol_table: SymbolTable,
     type_checker: TypeChecker,
     errors: Vec<SemanticError>,
 }
@@ -162,8 +161,10 @@ impl SemanticAnalyzer {
             Stmt::Write(expr) => {
                 self.analyze_expression(expr);
             }
-            Stmt::Return(expr) => {
-                self.analyze_expression(expr);
+            Stmt::Return(expr_option) => {
+                if let Some(expr) = expr_option {
+                    self.analyze_expression(expr);
+                }
             }
         }
     }

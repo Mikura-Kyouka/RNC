@@ -107,16 +107,23 @@ fn check_statements(stmts: &[Stmt], table: &mut SymbolTable, errors: &mut Vec<Se
                 check_expr(cond, table, errors);
                 check_statements(body, table, errors);
             }
-            Stmt::Read(name) => {
-                if !table.vars.contains_key(name) {
-                    errors.push(SemanticError::UndefinedIdentifier(name.clone()));
+            Stmt::Read(var) => {
+                let var_name_str = match var {
+                    Variable::Simple(name) => name,
+                    Variable::Array(name, _) => name,
+                    Variable::Record(name, _) => name,
+                };
+                if !table.vars.contains_key(var_name_str) {
+                    errors.push(SemanticError::UndefinedIdentifier(var_name_str.clone()));
                 }
             }
             Stmt::Write(expr) => {
                 check_expr(expr, table, errors);
             }
-            Stmt::Return(expr) => {
-                check_expr(expr, table, errors);
+            Stmt::Return(expr_option) => { // expr_option is &Option<Expr>
+                if let Some(expr) = expr_option {
+                    check_expr(expr, table, errors);
+                }
             }
         }
     }

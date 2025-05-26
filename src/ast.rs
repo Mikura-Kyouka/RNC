@@ -79,12 +79,12 @@ pub enum Stmt {
     Call { name: String, args: Vec<Expr> },
     If { cond: Expr, then: Vec<Stmt>, els: Vec<Stmt> },
     While { cond: Expr, body: Vec<Stmt> },
-    Read(String),
+    Read(Variable),
     Write(Expr),
-    Return(Expr),
+    Return(Option<Expr>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expr {
     Binary {
         op: BinOp,
@@ -96,7 +96,7 @@ pub enum Expr {
     Paren(Box<Expr>),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinOp {
     Add,
     Sub,
@@ -106,7 +106,7 @@ pub enum BinOp {
     Eq,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Variable {
     Simple(String),
     Array(String, Box<Expr>),

@@ -387,7 +387,7 @@ LoopStm: Stmt = {
 
 // InputStm  ::=  READ ( Invar)
 InputStm: Stmt = {
-    "read" "(" <invar:Invar> ")" => Stmt::Read(invar)
+    "read" "(" <invar:Invar> ")" => Stmt::Read(Variable::Simple(invar))
 };
 
 // Invar   ::=   ID
@@ -402,7 +402,7 @@ OutputStm: Stmt = {
 
 // ReturnStm  ::=  RETURN ( Exp )
 ReturnStm: Stmt = {
-    "return" "(" <expr:Exp> ")" => Stmt::Return(expr)
+    "return" "(" <expr:Exp> ")" => Stmt::Return(Some(expr))
 };
 
 // ActParamList::= e | Exp ActParamMore

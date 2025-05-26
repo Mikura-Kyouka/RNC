@@ -5,9 +5,7 @@ type FunctionSignature = (Vec<String>, Option<String>);
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    // 使用Vec来实现作用域栈，每个作用域是一个HashMap
     scopes: Vec<HashMap<String, String>>,
-    // 函数符号表
     functions: HashMap<String, FunctionSignature>,
 }
 

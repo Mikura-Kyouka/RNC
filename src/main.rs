@@ -9,6 +9,7 @@ mod lexer;
 mod parser;
 mod semantic;
 mod semantic_analyzer;
+mod code_gen;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -28,6 +29,7 @@ fn main() -> io::Result<()> {
     match lexer::lex(&source_code) {
         Ok(tokens) => {
             // 输出token序列到文件
+            println!("词法分析通过！");
             let mut token_file = fs::File::create("tokens.txt")?;
             for token in &tokens {
                 writeln!(token_file, "{:?}", token)?;
@@ -35,7 +37,7 @@ fn main() -> io::Result<()> {
             // 继续语法分析
             match parser::parse_source(&source_code) {
                 Ok(program) => {
-                    println!("解析成功！程序结构：{:?}", program);
+                    println!("语法分析通过！");
                     // 输出AST到文件
                     let mut ast_file = fs::File::create("ast.txt")?;
                     writeln!(ast_file, "{:#?}", program)?;
@@ -43,9 +45,18 @@ fn main() -> io::Result<()> {
                     // 语义分析
                     let mut semantic_analyzer = SemanticAnalyzer::new();
                     match semantic_analyzer.analyze(&program) {
-                        Ok(_) => println!("语义分析通过！"),
+                        Ok(_) => {
+                            println!("语义分析通过！");
+                            
+                            let mut code_generator = code_gen::LoongArch32Reduce::new(semantic_analyzer.symbol_table.clone());
+                            let assembly_code = code_generator.generate_code(&program);
+
+                            let mut asm_file = fs::File::create("output.S")?;
+                            writeln!(asm_file, "{}", assembly_code)?;
+                            println!("汇编代码已输出到 output.S");
+                        }
                         Err(errors) => {
-                            println!("语义分析发现错误:");
+                            println!("语义分析错误:");
                             for error in errors {
                                 println!("  - {}", error);
                             }
@@ -53,7 +64,7 @@ fn main() -> io::Result<()> {
                     }
                 },
                 Err(error) => {
-                    eprintln!("错误: {}", error);
+                    eprintln!("语法分析错误: {}", error);
                 }
             }
         }

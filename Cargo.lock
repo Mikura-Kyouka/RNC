@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "RNT"
+name = "RNC"
 version = "0.1.0"
 dependencies = [
  "lalrpop",
