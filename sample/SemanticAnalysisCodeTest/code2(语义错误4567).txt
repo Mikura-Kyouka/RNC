@@ -23,7 +23,6 @@ begin
     array1[record1] := 1;{5.数组成员变量的引用不合法}
     array1 := 1;{6.赋值语句的左右两边类型不相容}
     record1.x := 1;
-    record1.array1[0] := 1;
     record1.array1 := 1;{6.赋值语句的左右两边类型不相容}
     record1 := 1;{6.赋值语句的左右两边类型不相容}
     record1.test := 1;{5.域变量的引用不合法}

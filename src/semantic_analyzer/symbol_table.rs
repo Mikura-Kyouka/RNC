@@ -1,12 +1,28 @@
 use std::collections::HashMap;
 
 // 表示函数签名：(参数类型列表, 返回类型)
-type FunctionSignature = (Vec<String>, Option<String>);
+pub type FunctionSignature = (Vec<String>, Option<String>);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SymbolKind {
+    Variable,
+    Procedure,
+    TypeIdentifier,
+    // Potentially others like Constant, etc.
+}
+
+#[derive(Debug, Clone)]
+pub struct SymbolEntry {
+    pub typ: String,          // Type of the symbol (e.g., "int", "array of int", "procedure")
+    pub kind: SymbolKind,
+    // pub definition_node: Option<AstNodeId>, // For more detailed error reporting or go-to-definition
+    // pub details: Option<TypeDetails>, // For array bounds, record fields, etc.
+}
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
-    scopes: Vec<HashMap<String, String>>,
-    functions: HashMap<String, FunctionSignature>,
+    scopes: Vec<HashMap<String, SymbolEntry>>,
+    functions: HashMap<String, FunctionSignature>, // Stores procedure signatures specifically
 }
 
 impl SymbolTable {
@@ -25,33 +41,47 @@ impl SymbolTable {
     }
 
     pub fn exit_scope(&mut self) {
-        if !self.scopes.is_empty() {
+        if self.scopes.len() > 1 { // Keep at least the global scope
             self.scopes.pop();
         }
-        // 确保至少有一个作用域
-        if self.scopes.is_empty() {
-            self.enter_scope();
-        }
     }
 
-    pub fn insert(&mut self, name: String, typ: String) {
+    // Inserts a symbol into the current scope.
+    // Returns true if insertion was successful, false if already declared in current scope.
+    pub fn insert(&mut self, name: String, typ: String, kind: SymbolKind) -> bool {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(name, typ);
+            if scope.contains_key(&name) {
+                return false; // Already declared in current scope
+            }
+            scope.insert(name, SymbolEntry { typ, kind });
+            true
+        } else {
+            // Should not happen if enter_scope is called initially
+            false
         }
     }
 
-    pub fn get_type(&self, name: &str) -> Option<String> {
-        // 从最内层作用域向外层查找
+    // Looks up a symbol in all scopes, from innermost to outermost.
+    pub fn lookup(&self, name: &str) -> Option<&SymbolEntry> {
         for scope in self.scopes.iter().rev() {
-            if let Some(typ) = scope.get(name) {
-                return Some(typ.clone());
+            if let Some(entry) = scope.get(name) {
+                return Some(entry);
             }
         }
         None
     }
+    
+    pub fn get_type(&self, name: &str) -> Option<String> {
+        self.lookup(name).map(|entry| entry.typ.clone())
+    }
+
+    pub fn get_kind(&self, name: &str) -> Option<SymbolKind> {
+        self.lookup(name).map(|entry| entry.kind.clone())
+    }
+
 
     pub fn is_declared(&self, name: &str) -> bool {
-        self.get_type(name).is_some()
+        self.lookup(name).is_some()
     }
 
     pub fn is_declared_in_current_scope(&self, name: &str) -> bool {
@@ -62,13 +92,27 @@ impl SymbolTable {
         }
     }
 
-    // 添加函数声明
-    pub fn add_function(&mut self, name: String, params: Vec<String>, return_type: Option<String>) {
-        self.functions.insert(name, (params, return_type));
+    // Adds a function/procedure. Also adds its name to the symbol table.
+    pub fn add_function(&mut self, name: String, params: Vec<String>, return_type: Option<String>) -> bool {
+        if self.functions.contains_key(&name) || self.is_declared_in_current_scope(&name) {
+            return false; // Function/Procedure already declared
+        }
+        // Store the signature
+        self.functions.insert(name.clone(), (params, return_type));
+        // Add to symbol table as a procedure
+        if let Some(scope) = self.scopes.last_mut() {
+             // Typically, procedure type is just "procedure" or its signature stringified
+            scope.insert(name, SymbolEntry { typ: "procedure".to_string(), kind: SymbolKind::Procedure });
+            true
+        } else {
+            false
+        }
     }
 
     pub fn is_function(&self, name: &str) -> bool {
-        self.functions.contains_key(name)
+        // Check both the functions map and the symbol kind for consistency
+        self.functions.contains_key(name) && 
+        self.lookup(name).map_or(false, |e| e.kind == SymbolKind::Procedure)
     }
 
     pub fn get_function_signature(&self, name: &str) -> Option<&FunctionSignature> {

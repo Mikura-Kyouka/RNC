@@ -7,7 +7,6 @@ use crate::semantic_analyzer::SemanticAnalyzer;
 mod ast;
 mod lexer;
 mod parser;
-mod semantic;
 mod semantic_analyzer;
 mod code_gen;
 

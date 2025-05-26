@@ -1,1 +1,4 @@
 /target
+ast.txt
+tokens.txt
+output.S

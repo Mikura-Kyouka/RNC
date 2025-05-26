@@ -373,6 +373,17 @@ VariMore: VariMoreEnum = {
     "." <field:Ident> => VariMoreEnum::Field(field.clone()),
 };
 
+// FieldVar ::= ID FieldVarMore
+FieldVar: (String, Option<Box<Expr>>) = {
+    <id:Ident> <more:FieldVarMore> => (id.clone(), more)
+};
+
+// FieldVarMore ::= e | [ Exp ]
+FieldVarMore: Option<Box<Expr>> = {
+    => None,
+    "[" <expr:Exp> "]" => Some(Box::new(expr))
+};
+
 // ConditionalStm  ::=  IF RelExp THEN StmList ELSE StmList FI
 ConditionalStm: Stmt = {
     "if" <cond:RelExp> "then" <then:StmList> "else" <els:StmList> "fi" =>
@@ -422,23 +433,15 @@ ActParamMore: Vec<Expr> = {
 };
 
 // RelExp ::= Exp OtherRelE
-// OtherRelE ::= CmpOp Exp
+// 修正表达式处理，消除冲突
 #[inline]
 RelExp: Expr = {
-    <expr:Exp> <other:OtherRelE?> => {
-        match other {
-            Some((op, right)) => Expr::Binary {
-                left: Box::new(expr),
-                op,
-                right: Box::new(right)
-            },
-            None => expr
-        }
-    }
-};
-
-OtherRelE: (BinOp, Expr) = {
-    <op:CmpOp> <expr:Exp> => (op, expr)
+    <left:Exp> <op:CmpOp> <right:Exp> => Expr::Binary {
+        left: Box::new(left),
+        op,
+        right: Box::new(right)
+    },
+    <expr:Exp> => expr
 };
 
 // CmpOp  ::=    < |  =
@@ -447,44 +450,43 @@ CmpOp: BinOp = {
     "=" => BinOp::Eq
 };
 
-// Exp ::= Term OtherTerm
-// OtherTerm ::= e | AddOp Exp
+// 重构表达式处理，更明确地定义优先级
+// Exp ::= Term {AddOp Term}
 #[inline]
 Exp: Expr = {
-    <term:Term> <other:OtherTerm?> => {
-        match other {
-            Some((op, expr)) => Expr::Binary {
-                left: Box::new(term),
+    <mut left:Term> <rest:ExpRest*> => {
+        for (op, right) in rest {
+            left = Expr::Binary {
+                left: Box::new(left),
                 op,
-                right: Box::new(expr)
-            },
-            None => term
+                right: Box::new(right)
+            };
         }
+        left
     }
 };
 
-OtherTerm: (BinOp, Expr) = {
-    <op:AddOp> <expr:Exp> => (op, expr)
+ExpRest: (BinOp, Expr) = {
+    <op:AddOp> <term:Term> => (op, term)
 };
 
-// Term ::= Factor OtherFactor
-// OtherFactor ::= e | MultOp Term
+// Term ::= Factor {MultOp Factor}
 #[inline]
 Term: Expr = {
-    <factor:Factor> <other:OtherFactor?> => {
-        match other {
-            Some((op, term)) => Expr::Binary {
-                left: Box::new(factor),
+    <mut left:Factor> <rest:TermRest*> => {
+        for (op, right) in rest {
+            left = Expr::Binary {
+                left: Box::new(left),
                 op,
-                right: Box::new(term)
-            },
-            None => factor
+                right: Box::new(right)
+            };
         }
+        left
     }
 };
 
-OtherFactor: (BinOp, Expr) = {
-    <op:MultOp> <term:Term> => (op, term)
+TermRest: (BinOp, Expr) = {
+    <op:MultOp> <factor:Factor> => (op, factor)
 };
 
 // Factor ::= ( Exp ) | INTC | Variable
@@ -503,17 +505,6 @@ Variable: Variable = {
             VariMoreEnum::Field(field_var) => Variable::Record(id.clone(), field_var)
         }
     }
-};
-
-// FieldVar ::= ID FieldVarMore
-FieldVar: (String, Option<Box<Expr>>) = {
-    <id:Ident> <more:FieldVarMore> => (id.clone(), more)
-};
-
-// FieldVarMore ::= e | [ Exp ]
-FieldVarMore: Option<Box<Expr>> = {
-    => None,
-    "[" <expr:Exp> "]" => Some(Box::new(expr))
 };
 
 // AddOp  ::=    +  | -

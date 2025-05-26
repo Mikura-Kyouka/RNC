@@ -40,9 +40,15 @@ impl TypeName {
     pub fn to_string(&self) -> String {
         match self {
             TypeName::Base(base) => base.clone(),
-            TypeName::Array { low, high, base } => format!("array[{}..{}] of {}", low, high, base),
-            TypeName::Record(_) => "record_type".to_string(),
-            TypeName::Alias(name) => name.clone(),
+            TypeName::Array { low: _, high: _, base } => format!("array of {}", base), // 符合 TypeChecker 期望的��式
+            TypeName::Record(fields) => {
+                let field_strs: Vec<String> = fields
+                    .iter()
+                    .map(|(name, typ_name)| format!("{}:{}", name, typ_name)) // typ_name 应为字段类型的字符串��示
+                    .collect();
+                format!("record {} end", field_strs.join(";")) // 符合 TypeChecker 期望的格式
+            }
+            TypeName::Alias(name) => name.clone(), // 假设别名在使用此字符串之前已被解析
         }
     }
 }
@@ -110,7 +116,7 @@ pub enum BinOp {
 pub enum Variable {
     Simple(String),
     Array(String, Box<Expr>),
-    Record(String, String),
+    Record(String, String), // record_name, field_name
 }
 
 #[derive(Debug, Clone)]

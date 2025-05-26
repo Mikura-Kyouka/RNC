@@ -182,7 +182,7 @@ impl LoongArch32Reduce {
                 let cond_reg = self.generate_expression(cond);
                 
                 // 条件判断，如果为0跳转到else
-                self.emit(&format!("    beqz {}, {}    # if条件判断", cond_reg, else_label));
+                self.emit(&format!("    beq {}, $zero, {}    # if条件判断", cond_reg, else_label));
                 self.free_register(&cond_reg);
                 
                 // 生成then部分
@@ -215,7 +215,7 @@ impl LoongArch32Reduce {
                 let cond_reg = self.generate_expression(cond);
                 
                 // 条件判断，如果为0跳出循环
-                self.emit(&format!("    beqz {}, {}    # while条件判断", cond_reg, end_label));
+                self.emit(&format!("    beq {}, $zero, {}    # while条件判断", cond_reg, end_label));
                 self.free_register(&cond_reg);
                 
                 // 生成循环体
